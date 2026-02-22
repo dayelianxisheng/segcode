@@ -1,0 +1,7 @@
+"node_modules/
+.idea/
+logs/
+params/
+result/
+__pycache__/
+*.pth" | Out-File -FilePath .gitignore -Encoding utf8
