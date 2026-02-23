@@ -1,7 +1,31 @@
-"node_modules/
-.idea/
-logs/
-params/
-result/
+# Python
 __pycache__/
-*.pth" | Out-File -FilePath .gitignore -Encoding utf8
+*.py[cod]
+*$py.class
+*.so
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+params/
+checkpoints/
+
+# Results
+result/
+outputs/
+
+# Data (optional, uncomment if needed)
+# data/
+
+# Virtual environment
+venv/
+env/
