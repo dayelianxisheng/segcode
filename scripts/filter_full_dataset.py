@@ -27,7 +27,7 @@ def parse_args():
                        default=r"D:\resource\data\OD\AirbusShip",
                        help='源数据集根目录')
     parser.add_argument('--target_data_root', type=str,
-                       default=r"D:\resource\data\SS\AirbusShip_filtered_0.2",
+                       default=r"D:\resource\data\SS\AirbusShip_filtered_1",
                        help='目标数据集根目录')
     parser.add_argument('--source_img_dir', type=str, default="train_v2",
                        help='源图像目录名')
@@ -36,7 +36,7 @@ def parse_args():
                        help='源标注CSV文件名')
 
     # 数据集参数
-    parser.add_argument('--sample_ratio', type=float, default=0.2,
+    parser.add_argument('--sample_ratio', type=float, default=1,
                        help='采样比例 (0.0 - 1.0)')
     parser.add_argument('--val_split', type=float, default=0.2,
                        help='验证集划分比例 (0.0 - 1.0)')

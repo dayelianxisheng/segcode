@@ -1,6 +1,5 @@
 """
 损失函数定义
-支持BCE、Dice、Focal及组合损失
 """
 import torch
 import torch.nn as nn
@@ -10,10 +9,6 @@ import torch.nn.functional as F
 class DiceLoss(nn.Module):
     """
     Dice损失
-
-    Dice = 2*|X∩Y| / (|X| + |Y|)
-    Loss = 1 - Dice
-
     适用于处理类别不平衡问题
     """
     def __init__(self, smooth=1e-6):
@@ -72,6 +67,32 @@ class FocalLoss(nn.Module):
         return focal_loss.mean()
 
 
+class BCELoss(nn.Module):
+    """
+    二分类交叉熵损失 (Binary Cross Entropy)
+    """
+    def __init__(self, epsilon=1e-7):
+        super(BCELoss, self).__init__()
+        self.epsilon = epsilon
+
+    def forward(self, pred, target):
+        """
+        Args:
+            pred: 预测值 (B, 1, H, W)，范围[0, 1]
+            target: 真实标签 (B, 1, H, W)，范围[0, 1]
+
+        Returns:
+            BCE损失值
+        """
+        # 添加epsilon防止log(0)
+        pred = torch.clamp(pred, self.epsilon, 1 - self.epsilon)
+
+        # BCE公式: -[y*log(p) + (1-y)*log(1-p)]
+        bce = -(target * torch.log(pred) + (1 - target) * torch.log(1 - pred))
+
+        return bce.mean()
+
+
 class CombinedLoss(nn.Module):
     """
     组合损失函数
@@ -83,7 +104,7 @@ class CombinedLoss(nn.Module):
         super(CombinedLoss, self).__init__()
         self.bce_weight = bce_weight
         self.dice_weight = dice_weight
-        self.bce = nn.BCELoss()
+        self.bce = BCELoss(epsilon=1e-7)
         self.dice = DiceLoss(smooth=smooth)
 
     def forward(self, pred, target):

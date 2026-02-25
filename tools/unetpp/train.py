@@ -16,7 +16,7 @@ from tools.common import get_device, set_seed, create_optimizer, create_schedule
 
 def parse_args():
     p = argparse.ArgumentParser(description="UNet Training")
-    p.add_argument("--data_path", type=str, default=r"F:\resource\data\airbusship\AirbusShip_filtered")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_filtered_0.01")
     p.add_argument("--weight_path", type=str, default="params/unet_ship.pth")
     p.add_argument("--log_dir", type=str, default="logs")
     p.add_argument("--result_path", type=str, default="result")
@@ -103,7 +103,7 @@ def main():
         print(f"Train Loss: {train_loss:.4f}")
         metrics_tracker =SegmentationMetrics()
         val_loss,metrics = validate(model,val_loader,criterion,device,metrics_tracker)
-        print(f"Val Loss: {val_loss:.4f},IOU{metrics['iou']:.4f}")
+        print(f"Val Loss: {val_loss:.4f},IOU: {metrics['iou']:.4f}")
 
         is_best = val_loss < best
         if is_best:

@@ -47,13 +47,11 @@ class Attention_block(nn.Module):
         )
         self.relu = nn.ReLU(inplace=True)
     def forward(self, g, x):
-        g1 = self.W_g(g)
-        x1 = self.W_x(x)
-        psi = self.relu(g1 + x1)
-        psi = self.psi(psi)
+        g1 = self.W_g(g) # [B, F_int, H, W]
+        x1 = self.W_x(x) # [B, F_int, H, W]
+        psi = self.relu(g1 + x1)  # [B, F_int, H, W]
+        psi = self.psi(psi) # [B, 1, H, W]
         return x * psi
-
-        return x*psi
 
 
 class Attention_UNet(nn.Module):

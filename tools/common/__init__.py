@@ -23,14 +23,14 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
 
-
+# 优化器
 def create_optimizer(model, lr=0.001):
     return optim.Adam(model.parameters(), lr=lr)
 
-
+# 学习率调度器 使用 PyTorch 内置的 ReduceLROnPlateau 策略
 def create_scheduler(optimizer, patience=5, factor=0.5):
     return optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="min", factor=factor, patience=patience
+        optimizer, mode="min", factor=factor, patience=patience  # 模式设定为 "min"：代表我们监测的是 Loss，目标是越小越好。
     )
 
 

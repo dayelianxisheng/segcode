@@ -21,7 +21,7 @@ def parse_args():
     """解析命令行参数"""
     p = argparse.ArgumentParser(description="UNet3Plus Evaluation")
     p.add_argument("--data_path", type=str,
-                   default=r"F:\resource\data\airbusship\AirbusShip_filtered",
+                   default=r"D:\resource\data\SS\AirbusShip_filtered_0.01",
                    help="数据集根目录路径")
     p.add_argument("--weight_path", type=str, default="params/unet3p_ship_best.pth",
                    help="模型权重路径")

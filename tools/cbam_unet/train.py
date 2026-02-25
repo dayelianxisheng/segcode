@@ -1,3 +1,4 @@
+"""CBAM UNet Training Script"""
 import os, argparse, torch
 import time
 
@@ -6,7 +7,7 @@ from torch.utils.data import DataLoader
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from model import UNet
+from model import CBAM_UNet
 from model import DiceLoss, CombinedLoss
 from data import AirbusDataset
 from utils import SegmentationMetrics, EarlyStopping, TrainingLogger, count_parameters
@@ -14,9 +15,9 @@ from tools.common import get_device, set_seed, create_optimizer, create_schedule
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="UNet Training")
-    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_filtered_")
-    p.add_argument("--weight_path", type=str, default="params/unet_ship.pth")
+    p = argparse.ArgumentParser(description="CBAM UNet Training")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_filtered_0.2")
+    p.add_argument("--weight_path", type=str, default="params/cbam_unet_ship.pth")
     p.add_argument("--log_dir", type=str, default="logs")
     p.add_argument("--result_path", type=str, default="result")
     p.add_argument("--batch_size", type=int, default=16)
@@ -37,57 +38,41 @@ def parse_args():
     return p.parse_args()
 
 
+class CBAMUNetWithSigmoid(nn.Module):
+    """CBAM UNet with sigmoid output for segmentation"""
+    def __init__(self, in_channels=3, out_channels=1):
+        super().__init__()
+        self.model = CBAM_UNet(in_channels, out_channels)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        return self.sigmoid(self.model(x))
+
+
 def train_one_epoch(model, loader, criterion, optimizer, device, interval):
-    # 将模型设置为训练模式：启用 Dropout 和 Batch Normalization
     model.train()
-    total = 0  # 累计本轮的总损失，用于计算平均值
-
-    # 遍历数据加载器中的每一个 Batch
+    total = 0
     for i, (x, y) in enumerate(loader):
-        # 将输入数据 x (图像) 和标签 y (掩码) 转移到指定设备
         x, y = x.to(device), y.to(device)
-
-        # 前向传播
-        # model(x) 得到预测结果，与真实标签 y 传入损失函数计算 Loss
         loss = criterion(model(x), y)
-
-        # 反向传播
-        optimizer.zero_grad()  # 清除上一个 Batch 留下的梯度，防止累加
-        loss.backward()  # 计算当前损失对模型参数的梯度
-        optimizer.step()  # 根据梯度更新模型权重
-
-        # 统计逻辑
-        total += loss.item()  # 累加 Loss 值
-
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        total += loss.item()
         if (i + 1) % interval == 0:
-            print(f"  Batch {i + 1}/{len(loader)}, Loss: {loss.item():.4f}")
-
-    # 返回本轮训练的平均损失
+            print(f"  Batch {i+1}/{len(loader)}, Loss: {loss.item():.4f}")
     return total / len(loader)
 
 
 def validate(model, loader, criterion, device, metrics):
-    # 将模型设置为评估模式：固定 Batch Normalization 的均值方差，关闭 Dropout
     model.eval()
-    total = 0  # 累计验证集总损失
-
-    # 核心：关闭梯度计算上下文，既能显著减少显存占用，又能加快运行速度
+    total = 0
     with torch.no_grad():
         for x, y in loader:
-            # 数据转移到设备
             x, y = x.to(device), y.to(device)
-
-            # 前向预测
-            outputs = model(x)
-
-            # 计算验证损失
-            loss = criterion(outputs, y)
+            loss = criterion(model(x), y)
             total += loss.item()
-
-            # 更新分割指标（如计算 IoU, Dice 系数等）
-            metrics.update(outputs, y)
-
-    # 返回平均验证损失和最终统计的各项指标
+            metrics.update(model(x), y)
     return total / len(loader), metrics.get_metrics()
 
 
@@ -97,84 +82,62 @@ def main():
     set_seed(args.seed)
     os.makedirs(os.path.dirname(args.weight_path) or ".", exist_ok=True)
     os.makedirs(args.result_path, exist_ok=True)
-
-    # 初始化训练日志记录器，既在控制台打印也保存到文件
     logger = TrainingLogger(log_dir=args.log_dir, log_to_file=True)
 
-    # 实例化 UNet 模型并转移到计算设备
-    model = UNet().to(device)
-    # 计算参数量
+    model = CBAMUNetWithSigmoid().to(device)
     params = count_parameters(model)
-    logger.model_info("UNet", params, device)
+    logger.model_info("CBAM_UNet", params, device)
 
-    # 定义损失函数：结合了 BCE 和 Dice Loss
     criterion = CombinedLoss(bce_weight=args.bce_weight, dice_weight=args.dice_weight)
     image_size = tuple(args.image_size)
-
-    # 训练集：启用图像增强；验证集：关闭增强
     train_ds = AirbusDataset(args.data_path, "training", image_size, args.use_augmentation)
     val_ds = AirbusDataset(args.data_path, "validation", image_size, False)
-
-    # 封装为 DataLoader：管理批处理(Batch)、打乱(Shuffle)和多线程加载(num_workers)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     val_loader = DataLoader(val_ds, batch_size=args.val_batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
-    
+
     logger.dataset_info(len(train_ds), len(val_ds), args.batch_size, args.val_batch_size, image_size, args.num_workers)
 
-    # 初始化优化器和学习率调度器
     optimizer = create_optimizer(model, args.lr)
     scheduler = create_scheduler(optimizer, args.lr_scheduler_patience, args.lr_scheduler_factor)
     early_stop = EarlyStopping(args.early_stop_patience, 0.001, "min")
-    
+
     checkpoint_path = args.resume if args.resume else args.weight_path
     start_epoch, best = load_checkpoint(checkpoint_path, model, optimizer, device)
     best_epoch = 1
     old_lr = args.lr
-    
+
     print(f"Training start, epochs: {args.epochs}")
     start = time.time()
 
-    # --- 开始按轮次（Epoch）循环训练 ---
     for epoch in range(start_epoch, args.epochs + 1):
         print(f"\nEpoch [{epoch}/{args.epochs}]")
-
-        # 1. 训练阶段：调用训练函数，更新模型权重，返回该 Epoch 的平均损失
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device, args.print_interval)
         print(f"Train Loss: {train_loss:.4f}")
 
-        # 2. 准备评估指标：每一轮验证前初始化一个新的指标追踪器（重置 IoU, Dice 等计数）
         metrics_tracker = SegmentationMetrics()
-
-        # 3. 验证阶段：在不更新权重的情况下，测试模型在验证集上的性能
         val_loss, metrics = validate(model, val_loader, criterion, device, metrics_tracker)
         print(f"Val Loss: {val_loss:.4f}, IoU: {metrics['iou']:.4f}, Dice: {metrics['dice']:.4f}, "
               f"Precision: {metrics['precision']:.4f}, Recall: {metrics['recall']:.4f}")
 
-        # 4. 最佳模型
         is_best = val_loss < best
         if is_best:
             best, best_epoch = val_loss, epoch
             print(f"*** Best model saved, Val Loss: {best:.4f} ***")
 
-        # 5. 学习率调度：根据验证损失决定是否需要降低学习率
         scheduler.step(val_loss)
-
-        # 6. 学习率日志
         new_lr = optimizer.param_groups[0]["lr"]
         if new_lr < old_lr:
             print(f"LR reduced: {old_lr:.6f} -> {new_lr:.6f}")
         old_lr = new_lr
 
-        # 7. 保存为 Checkpoint
         save_checkpoint(model, optimizer, epoch, val_loss, is_best, checkpoint_path, best_val_loss=best)
 
-        # 8. 早停机制
         if early_stop(val_loss):
             print(f"Early stopping at epoch {epoch}")
             break
 
     total = time.time() - start
-    print(f"\nTraining complete in {total / 60:.1f} minutes")
+    print(f"\nTraining complete in {total/60:.1f} minutes")
     print(f"Best epoch: {best_epoch}, Best Val Loss: {best:.4f}")
 
 
