@@ -1,4 +1,3 @@
-"""UNet Evaluation Script"""
 import os, argparse, torch
 from torch.utils.data import DataLoader
 import sys
@@ -12,7 +11,7 @@ from tools.common import get_device
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--data_path", type=str, default=r"F:\resource\data\airbusship\AirbusShip_filtered")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_filtered_0.01")
     p.add_argument("--weight", type=str, required=True)
     p.add_argument("--batch_size", type=int, default=4)
     p.add_argument("--image_size", type=int, nargs=2, default=[256, 256])
@@ -27,7 +26,7 @@ def main():
     print(f"Device: {device}")
     
     val_ds = AirbusDataset(args.data_path, "validation", tuple(args.image_size), False)
-    loader = DataLoader(val_ds, args.batch_size, False, args.num_workers, True)
+    loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
     
     model = UNet().to(device)
     if os.path.exists(args.weight):

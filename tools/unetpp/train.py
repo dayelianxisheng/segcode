@@ -16,7 +16,7 @@ from tools.common import get_device, set_seed, create_optimizer, create_schedule
 
 def parse_args():
     p = argparse.ArgumentParser(description="UNet Training")
-    p.add_argument("--data_path", type=str, default=r"F:\resource\data\airbusship\AirbusShip_filtered")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\seg\AirbusShip_filtered_0.5")
     p.add_argument("--weight_path", type=str, default="params/unet_ship.pth")
     p.add_argument("--log_dir", type=str, default="logs")
     p.add_argument("--result_path", type=str, default="result")

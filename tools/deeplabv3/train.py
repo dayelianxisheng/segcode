@@ -14,7 +14,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--backbone", type=str, default="resnet50", choices=["resnet50", "resnet101"])
     p.add_argument("--pretrained", action="store_true")
-    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_small")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\seg\AirbusShip\AirbusShip_filtered_0.1")
     p.add_argument("--weight_path", type=str, default="params/deeplabv3_ship.pth")
     p.add_argument("--log_dir", type=str, default="logs")
     p.add_argument("--result_path", type=str, default="result")

@@ -16,11 +16,11 @@ from tools.common import get_device, set_seed, create_optimizer, create_schedule
 
 def parse_args():
     p = argparse.ArgumentParser(description="UNet Training")
-    p.add_argument("--data_path", type=str, default=r"D:\resource\data\SS\AirbusShip_filtered_0.1")
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\seg\AirbusShip_filtered_0.1")
     p.add_argument("--weight_path", type=str, default="params/unet_ship.pth")
     p.add_argument("--log_dir", type=str, default="logs")
     p.add_argument("--result_path", type=str, default="result")
-    p.add_argument("--batch_size", type=int, default=16)
+    p.add_argument("--batch_size", type=int, default=10)
     p.add_argument("--val_batch_size", type=int, default=4)
     p.add_argument("--epochs", type=int, default=50)
     p.add_argument("--lr", type=float, default=0.001)
@@ -105,7 +105,7 @@ def main():
         
         metrics_tracker = SegmentationMetrics()
         val_loss, metrics = validate(model, val_loader, criterion, device, metrics_tracker)
-        print(f"Val Loss: {val_loss:.4f}, IoU: {metrics['iou']:.4f}")
+        print(f"Val Loss: {val_loss:.4f}, IoU: {metrics['iou']:.4f}, dice: {metrics['dice']:.4f}")
         
         is_best = val_loss < best
         if is_best:
