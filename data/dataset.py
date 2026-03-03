@@ -109,7 +109,6 @@ class AirbusDataset(Dataset):
 
 
 if __name__ == '__main__':
-    from torch.utils.data import DataLoader
 
     data_path = r"F:\resource\data\airbusship\AirbusShip_filtered"
     dataset = AirbusDataset(data_path, split='training')

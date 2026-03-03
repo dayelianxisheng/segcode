@@ -29,7 +29,7 @@ def parse_args():
                    help="日志保存目录")
     p.add_argument("--result_path", type=str, default="result",
                    help="结果保存目录")
-    p.add_argument("--variant", type=str, default="vit_b16",
+    p.add_argument("--variant", type=str, default="vit_b32",
                    choices=["vit_b16", "vit_b32", "vit_l16"],
                    help="TransUNet变体")
     p.add_argument("--img_size", type=int, default=256,
@@ -50,6 +50,10 @@ def parse_args():
                    help="Dice损失权重")
     p.add_argument("--use_augmentation", action="store_true",
                    help="是否使用数据增强")
+    p.add_argument("--pretrained_resnet", action="store_true", default=True,
+                   help="是否使用预训练ResNet权重 (默认: True)")
+    p.add_argument("--no_pretrained_resnet", action="store_true",
+                   help="不使用预训练ResNet权重")
     p.add_argument("--early_stop_patience", type=int, default=10,
                    help="早停耐心值")
     p.add_argument("--lr_scheduler_patience", type=int, default=5,
@@ -121,12 +125,17 @@ def main():
     logger = TrainingLogger(log_dir=args.log_dir, log_to_file=True)
 
     # 创建模型
+    # 确定是否使用预训练ResNet权重
+    use_pretrained = args.pretrained_resnet and not args.no_pretrained_resnet
     print(f"创建TransUNet模型: {args.variant}")
+    print(f"使用预训练ResNet权重: {use_pretrained}")
+
     model = create_transunet(
         variant=args.variant,
         img_size=args.img_size,
         in_channels=3,
-        num_classes=1
+        num_classes=1,
+        pretrained_resnet=use_pretrained
     ).to(device)
 
     params = count_parameters(model)

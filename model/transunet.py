@@ -7,9 +7,6 @@ from torch.nn.modules.utils import _pair
 from torchvision.models import resnet50, ResNet50_Weights
 
 
-ACT2FN = {"gelu": torch.nn.functional.gelu, "relu": torch.nn.functional.relu}
-
-
 class Conv2dReLU(nn.Sequential):
     """卷积-BN-ReLU块"""
     def __init__(self, in_channels, out_channels, kernel_size, padding=0, stride=1, use_batchnorm=True):
@@ -75,11 +72,6 @@ class ResNetSkipConnections(nn.Module):
 
 
 class PatchEmbedding(nn.Module):
-    """
-    图像块嵌入层
-
-    将特征图分割为patches并嵌入到向量空间
-    """
     def __init__(self, in_channels=1024, embed_dim=768, patch_size=1):
         super(PatchEmbedding, self).__init__()
         # patch_size=1 表示不进行额外的patch分割，直接投影
@@ -99,7 +91,7 @@ class PatchEmbedding(nn.Module):
             patches: (B, N, embed_dim) 其中 N = H × W
         """
         x = self.projection(x)  # (B, embed_dim, H, W)
-        x = x.flatten(2)        # (B, embed_dim, H*W)
+        x = x.flatten(2)        # (B, embed_dim, H*W) 从第 2 个维度（索引从 0 开始）开始展平
         x = x.transpose(-1, -2) # (B, H*W, embed_dim)
         return x
 
@@ -123,28 +115,40 @@ class MultiHeadAttention(nn.Module):
         self.softmax = Softmax(dim=-1)
 
     def transpose_for_scores(self, x):
+        """
+        (B, N, 768) ---->(B, N, 12, 64) ----> (B, 12, N, 64)
+        """
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
 
     def forward(self, hidden_states):
+        # 线性变换生成 Q, K, V
         mixed_query_layer = self.query(hidden_states)
         mixed_key_layer = self.key(hidden_states)
         mixed_value_layer = self.value(hidden_states)
 
+        # 拆分为多头格式
         query_layer = self.transpose_for_scores(mixed_query_layer)
         key_layer = self.transpose_for_scores(mixed_key_layer)
         value_layer = self.transpose_for_scores(mixed_value_layer)
 
+        # 计算注意力得分 (Query · Key^T)
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
+        # 缩放 除以 sqrt(d_k)，防止点积过大导致梯度消失
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
+        # 归一化
         attention_probs = self.softmax(attention_scores)
         attention_probs = self.attn_dropout(attention_probs)
 
+        # 加权求和 (Prob · Value) (B, 12, N, N) * (B, 12, N, 64) -> (B, 12, N, 64）
         context_layer = torch.matmul(attention_probs, value_layer)
+        # 还原维度 (B, 12, N, 64) -> (B, N, 12, 64)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
+        # (B, N, 12, 64) -> (B, N, 768)
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(*new_context_layer_shape)
+        # 最终线性投影与dropout
         attention_output = self.out(context_layer)
         attention_output = self.proj_dropout(attention_output)
         return attention_output
@@ -156,13 +160,15 @@ class MLP(nn.Module):
         super(MLP, self).__init__()
         self.fc1 = Linear(embed_dim, mlp_dim)
         self.fc2 = Linear(mlp_dim, embed_dim)
-        self.act_fn = ACT2FN["gelu"]
+        self.act_fn = F.gelu
         self.dropout = Dropout(dropout_rate)
 
     def forward(self, x):
+        # 升维
         x = self.fc1(x)
         x = self.act_fn(x)
         x = self.dropout(x)
+        # 降维
         x = self.fc2(x)
         x = self.dropout(x)
         return x
@@ -212,9 +218,6 @@ class TransformerEncoder(nn.Module):
 class DecoderBlock(nn.Module):
     """
     解码器块 - 上采样 + 跳跃连接融合
-
-    架构:
-        上采样(×2) → 拼接跳跃连接 → Conv3×3 → Conv3×3
     """
     def __init__(self, in_channels, out_channels, skip_channels=0, use_batchnorm=True):
         super().__init__()
@@ -257,8 +260,6 @@ class DecoderBlock(nn.Module):
 
 class DecoderCup(nn.Module):
     """
-    UNet风格的解码器
-
     将Transformer编码器的输出逐步上采样，并与ResNet特征融合
 
     Args:
@@ -324,7 +325,6 @@ class DecoderCup(nn.Module):
 class SegmentationHead(nn.Sequential):
     """
     分割头
-
     最终的1×1卷积层，将特征映射到类别数
     """
     def __init__(self, in_channels, out_channels, kernel_size=3):
@@ -514,12 +514,6 @@ def create_transunet(variant='vit_b16', img_size=224, in_channels=3, num_classes
 
 
 if __name__ == '__main__':
-    # 测试TransUNet
-    print("=" * 60)
-    print("测试TransUNet模型")
-    print("=" * 60)
-
-    # 创建模型
     model = create_transunet(variant='vit_b16', img_size=224, in_channels=3, num_classes=1)
 
     # 计算参数量
@@ -530,7 +524,7 @@ if __name__ == '__main__':
     print(f"可训练参数量: {trainable_params:,}")
 
     # 测试前向传播
-    x = torch.randn(2, 3, 224, 224)
+    x = torch.randn(1, 3, 224, 224)
     output = model(x)
     print(f"输入形状: {x.shape}")
     print(f"输出形状: {output.shape}")
