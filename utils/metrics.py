@@ -147,10 +147,6 @@ class SegmentationMetrics:
 
 
 if __name__ == '__main__':
-    # 测试指标计算
-    print("=" * 60)
-    print("测试评估指标")
-    print("=" * 60)
 
     # 创建模拟数据
     pred = torch.sigmoid(torch.randn(4, 1, 256, 256))

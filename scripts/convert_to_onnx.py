@@ -1,12 +1,9 @@
-"""
-将PyTorch模型转换为ONNX格式
-"""
 import os
 import argparse
 import torch
 import torch.onnx
 import sys
-
+import warnings
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from model import create_transunet
@@ -17,8 +14,6 @@ def export_to_onnx(model, onnx_path, img_size=256, batch_size=1, opset_version=1
     model.eval()
     dummy_input = torch.randn(batch_size, 3, img_size, img_size)
 
-    # 忽略TracerWarning（传统导发器）
-    import warnings
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
         torch.onnx.export(

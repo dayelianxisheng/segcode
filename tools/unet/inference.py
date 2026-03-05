@@ -1,7 +1,3 @@
-"""
-UNet推理脚本 - 增强版
-支持原图、概率图、掩码图、叠加图的绘制
-"""
 import os
 import argparse
 import torch
@@ -17,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from model import UNet
 from tools.common import get_device
-
+from torchvision import transforms
 
 def parse_args():
     p = argparse.ArgumentParser(description="UNet Inference")
@@ -109,7 +105,7 @@ def infer_one(model, img_path, out_dir, size, threshold, device, save_all=False)
 
     # 预处理
     img_r = resize(img, size)
-    from torchvision import transforms
+
     x = transforms.ToTensor()(img_r).unsqueeze(0).to(device)
 
     # 推理
@@ -150,7 +146,7 @@ def main():
     if os.path.exists(args.weight):
         ckpt = torch.load(args.weight, map_location=device)
         model.load_state_dict(ckpt["model_state_dict"] if "model_state_dict" in ckpt else ckpt)
-        print(f"✓ 模型权重已加载: {args.weight}")
+        print(f" 模型权重已加载: {args.weight}")
 
     if args.image:
         infer_one(model, args.image, args.output_dir, tuple(args.image_size), args.threshold, device, args.save_all)

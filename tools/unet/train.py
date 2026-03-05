@@ -1,4 +1,3 @@
-"""UNet Training Script"""
 import os, argparse, torch
 import time
 
@@ -39,29 +38,41 @@ def parse_args():
 
 
 def train_one_epoch(model, loader, criterion, optimizer, device, interval):
-    model.train()
+    """
+    训练一个 Epoch
+    """
+    model.train()  # 将模型设置为训练模式（启用 Dropout 和 BatchNorm）
     total = 0
     for i, (x, y) in enumerate(loader):
-        x, y = x.to(device), y.to(device)
+        x, y = x.to(device), y.to(device)  # 数据搬运到 GPU/CPU
+
+        # 前向传播：计算预测值并对比真实标签计算损失
         loss = criterion(model(x), y)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+
+        # 反向传播
+        optimizer.zero_grad()  # 1. 清空梯度（防止梯度累加）
+        loss.backward()  # 2. 计算梯度
+        optimizer.step()  # 3. 更新模型参数
+
         total += loss.item()
         if (i + 1) % interval == 0:
-            print(f"  Batch {i+1}/{len(loader)}, Loss: {loss.item():.4f}")
-    return total / len(loader)
+            print(f"  Batch {i + 1}/{len(loader)}, Loss: {loss.item():.4f}")
+    return total / len(loader)  # 返回平均训练损失
 
 
 def validate(model, loader, criterion, device, metrics):
-    model.eval()
+    """
+    模型验证,不更新参数，只评估性能
+    """
+    model.eval() # 将模型设置为评估模式
     total = 0
-    with torch.no_grad():
+    with torch.no_grad(): # 禁用梯度计算，节省显存并加速
         for x, y in loader:
             x, y = x.to(device), y.to(device)
-            loss = criterion(model(x), y)
+            pred = model(x)
+            loss = criterion(pred, y)
             total += loss.item()
-            metrics.update(model(x), y)
+            metrics.update(pred, y) # 更新 IoU, Dice 等评估指标
     return total / len(loader), metrics.get_metrics()
 
 
@@ -69,6 +80,7 @@ def main():
     args = parse_args()
     device = get_device()
     set_seed(args.seed)
+
     os.makedirs(os.path.dirname(args.weight_path) or ".", exist_ok=True)
     os.makedirs(args.result_path, exist_ok=True)
     logger = TrainingLogger(log_dir=args.log_dir, log_to_file=True)
@@ -76,9 +88,11 @@ def main():
     model = UNet().to(device)
     params = count_parameters(model)
     logger.model_info("UNet", params, device)
-    
+
+    # 结合了 BCE (二元交叉熵) 和 Dice Loss，常用于解决分割中正负样本极不平衡的问题
     criterion = CombinedLoss(bce_weight=args.bce_weight, dice_weight=args.dice_weight)
     image_size = tuple(args.image_size)
+
     train_ds = AirbusDataset(args.data_path, "training", image_size, args.use_augmentation)
     val_ds = AirbusDataset(args.data_path, "validation", image_size, False)
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
