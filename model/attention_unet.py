@@ -53,8 +53,6 @@ class Attention_block(nn.Module):
         psi = self.psi(psi)
         return x * psi
 
-        return x*psi
-
 
 class Attention_UNet(nn.Module):
     def __init__(self,in_channel=3,out_channel=1):

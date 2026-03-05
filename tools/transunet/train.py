@@ -1,6 +1,3 @@
-"""
-TransUNet训练脚本
-"""
 import os
 import argparse
 import torch
@@ -21,7 +18,7 @@ from tools.common import get_device, set_seed, create_optimizer, create_schedule
 def parse_args():
     """解析命令行参数"""
     p = argparse.ArgumentParser(description="TransUNet Training")
-    p.add_argument("--data_path", type=str, default=r"D:\resource\data\seg\AirbusShip_filtered_0.5",
+    p.add_argument("--data_path", type=str, default=r"D:\resource\data\seg\AirbusShip_filtered_1",
                    help="数据集路径")
     p.add_argument("--weight_path", type=str, default="params/transunet_ship.pth",
                    help="模型权重保存路径")

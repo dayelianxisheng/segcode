@@ -29,7 +29,7 @@ class UnetPP(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
 
-        # 编码器和嵌套卷积块（无修改）
+        # 编码器和嵌套卷积块
         self.conv0_0 = DoubleConv(in_ch, nb_filter[0])
         self.conv1_0 = DoubleConv(nb_filter[0], nb_filter[1])
         self.conv2_0 = DoubleConv(nb_filter[1], nb_filter[2])
@@ -60,9 +60,20 @@ class UnetPP(nn.Module):
             self.final = nn.Conv2d(nb_filter[0], out_ch, kernel_size=1)
 
     def forward(self, x):
+        # 0-0：输入→32通道，尺寸不变
         x0_0 = self.conv0_0(x)
+        # x0_0: [2, 32, 256, 256]（in_ch=3→out_ch=32，Conv2d尺寸不变）
+
+        # 1-0：x0_0下采样→64通道，尺寸减半
         x1_0 = self.conv1_0(self.pool(x0_0))
+        # pool(x0_0): [2, 32, 128, 128]（下采样）
+        # x1_0: [2, 64, 128, 128]（32→64通道，Conv2d尺寸不变）
+
+        # 0-1：x0_0 + 上采样x1_0 → 拼接后卷积→32通道
         x0_1 = self.conv0_1(torch.cat([x0_0, self.upsample(x1_0)], 1))
+        # self.upsample(x1_0): [2, 64, 256, 256]（上采样尺寸翻倍）
+        # torch.cat拼接：32(x0_0) + 64(x1_0上采样) = 96通道 → [2, 96, 256, 256]
+        # x0_1: [2, 32, 256, 256]（96→32通道，Conv2d尺寸不变）
 
         x2_0 = self.conv2_0(self.pool(x1_0))
         x1_1 = self.conv1_1(torch.cat([x1_0, self.upsample(x2_0)], 1))
