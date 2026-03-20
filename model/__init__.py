@@ -9,6 +9,8 @@ from .unet3p import UNet3Plus
 from .transunet import TransUNet, create_transunet, TransUNetConfig
 from .danet import DANet, DANetSimple
 from .res_unet_plus import ResUnetPlusPlus
+from .segformer import SegFormer
+from .ca_segformer import CASegFormer
 from .losses import DiceLoss, FocalLoss, CombinedLoss, PSPNetLoss, DeepSupervisionLoss, UNet3PlusLoss
 
 
@@ -21,5 +23,6 @@ __all__ = [
     'UNet', 'PSPNet', 'PSPNetWithAux', 'DeepLabV3', 'UnetPP', 'UNet3Plus', 'TransUNet',
     'create_transunet', 'TransUNetConfig', 'DANet', 'DANetSimple', 'ResUnetPlusPlus',
     'create_res_unet_plus',
-    'DiceLoss', 'FocalLoss', 'CombinedLoss', 'PSPNetLoss', 'DeepSupervisionLoss', 'UNet3PlusLoss'
+    'DiceLoss', 'FocalLoss', 'CombinedLoss', 'PSPNetLoss', 'DeepSupervisionLoss', 'UNet3PlusLoss',
+    'SegFormer'
 ]
