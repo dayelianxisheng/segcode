@@ -100,8 +100,17 @@ class ChannelAggregationFFN(nn.Module):
 
 
 if __name__ == '__main__':
-    input = torch.randn(1, 64, 32, 32)# 输入 B C H W
-    block = ChannelAggregationFFN(embed_dims=64)
-    output = block(input)
-    print(input.size())
-    print(output.size())
+    B,C,H,W = 1,64,32, 32
+    N = H * W
+
+    # 1. 构造输入: [B, N, C] -> [1, 1024, 64]
+    dummy_input = torch.randn(B, N, C)
+    block = ChannelAggregationFFN(embed_dims=C)
+
+    # 3. 运行前向传播，传入 H, W
+    output = block(dummy_input, H, W)
+
+    # 4. 打印结果
+    print(f"输入形状 (B, N, C): {dummy_input.size()}")
+    print(f"输出形状 (B, N, C): {output.size()}")
+
